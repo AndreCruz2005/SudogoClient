@@ -6,12 +6,15 @@
 
     let sudokuBoard = $state([]);
     let focusedCell = $state([]);
+    
+    const difficulties = {EASY:36, MEDIUM:29, HARD:22};
+    let difficulty = $state("MEDIUM");
 
     const getSudoku = () => {
         axios
-            .get(`${getContext("backend")}/sudoku?hints=40`)
+            .get(`${getContext("backend")}/sudoku?hints=${difficulties[difficulty]}&boxes=true`)
             .then((res) => {
-                sudokuBoard = getBoxes(res.data);
+                sudokuBoard = res.data;
             })
             .catch((err) => {
                 console.error(err);
@@ -22,28 +25,6 @@
         getSudoku();
     });
 
-    // Function to get 3x3 boxes from the 9x9 grid
-    function getBoxes(arr) {
-        let boxes = [];
-
-        // Iterates over all the boxes
-        for (let boxRow = 0; boxRow < 3; boxRow++) {
-            for (let boxCol = 0; boxCol < 3; boxCol++) {
-                // Creates each box
-                let box = [];
-
-                // Iterates over all cells in the box
-                for (let i = 0; i < 3; i++) {
-                    for (let j = 0; j < 3; j++) {
-                        const cell = arr[boxRow * 3 + i][boxCol * 3 + j];
-                        box.push(cell > 0 ? cell : "");
-                    }
-                }
-                boxes.push(box);
-            }
-        }
-        return boxes;
-    }
 </script>
 <div id="game">
     <div id="board">
@@ -56,7 +37,7 @@
                             focusedCell =  focusedCell[0] === boxI && focusedCell[1] === cellI ? [] : [boxI, cellI];
                         }}
                     >
-                        {cell}
+                        {cell != 0 ? cell : ""}
                     </div>
                 {/each}
             </div>
