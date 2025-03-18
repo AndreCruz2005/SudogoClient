@@ -11,7 +11,6 @@
         axios
             .get(`${getContext("backend")}/sudoku?hints=40`)
             .then((res) => {
-                console.log(res.data);
                 sudokuBoard = getBoxes(res.data);
             })
             .catch((err) => {
@@ -46,25 +45,45 @@
         return boxes;
     }
 </script>
+<div id="game">
+    <div id="board">
+        {#each sudokuBoard as box, boxI}
+            <div class="box">
+                {#each box as cell, cellI}
+                    <div
+                        id={focusedCell[0] === boxI && focusedCell[1] === cellI ? "active-cell" : "cell"}
+                        onclick={() => {
+                            focusedCell =  focusedCell[0] === boxI && focusedCell[1] === cellI ? [] : [boxI, cellI];
+                        }}
+                    >
+                        {cell}
+                    </div>
+                {/each}
+            </div>
+        {/each}
+    </div>
+    <div id="numpad">
+        {#each Array.from({ length: 9 }, (_, i) => i + 1) as num}
+            <button>{num}</button>
+        {/each}
+    </div>
 
-<div id="board">
-    {#each sudokuBoard as box, boxI}
-        <div class="box">
-            {#each box as cell, cellI}
-                <div
-                    id={focusedCell[0] === boxI && focusedCell[1] === cellI ? "active-cell" : "cell"}
-                    onclick={() => {
-                        focusedCell = [boxI, cellI];
-                    }}
-                >
-                    {cell}
-                </div>
-            {/each}
-        </div>
-    {/each}
 </div>
 
 <style>
+    #game {
+        display: flex;
+        height: fit-content
+    }
+    #numpad{
+        display: grid;
+        grid-template-columns: auto auto auto;
+        padding: 5%;
+        gap: 10px;
+    }
+    #numpad button{
+        width: 160px;
+    }
     #board {
         display: grid;
         grid-template-columns: auto auto auto;
@@ -86,7 +105,10 @@
         align-content: center;
         transition: 0.1s;
     }
+    .box div:hover{
+        cursor: pointer;
+    }
     #active-cell {
-        background-color: light-dark(#f8f9fa, rgb(24, 174, 205));
+        background-color: light-dark( rgb(143, 221, 236), #6c7e83);
     }
 </style>
