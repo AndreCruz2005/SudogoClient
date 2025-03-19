@@ -10,7 +10,7 @@
     // Board state
     let sudokuBoard = $state([]);
     let focusedCell = $state([]);
-    let relatedCells = $state([]);
+    let relatedCells = $state({});
     let occupiedCells = $state({});
 
     // Difficulty settings
@@ -32,31 +32,13 @@
         getSudoku();
     });
 
-    function get2DIndex(index) {
-        const row = Math.floor(index / 3);
-        const col = index % 3;
-
-        return [row, col];
-    }
-    /**
-     * @param {any[]} array
-     * @param {number} row
-     * @param {number} col
-     */
-    function getRowAndCol(array, row, col) {
-        const rowValues = array.slice(row * 3, row * 3 + 3);
-        const columnValues = [array[col], array[col + 3], array[col + 6]];
-
-        return [rowValues, columnValues];
-    }
-
     // When selecting a cell, gets row, column and box of the cell
     function getRelatedCells(boxI, cellI) {
-        let cells = [];
+        let cells = {};
 
         // Get all cells within the same box
         for (let i = 0; i < 9; i++) {
-            cells.push(`${boxI},${i}`);
+            cells[`${boxI},${i}`] = sudokuBoard[boxI][i];
         }
 
         // Convert boxI and cellI to global row and column
@@ -73,31 +55,29 @@
         const cellRow = Math.floor(cellI / 3);
         const cellCol = cellI % 3;
 
-        // Calculate global row and column (0-8)
-        const globalRow = boxRow * 3 + cellRow;
-        const globalCol = boxCol * 3 + cellCol;
-
         // Get all cells in the same row
         for (let boxColIndex = 0; boxColIndex < 3; boxColIndex++) {
             const rowBoxI = boxRow * 3 + boxColIndex;
+
             for (let cellColIndex = 0; cellColIndex < 3; cellColIndex++) {
                 const rowCellI = cellRow * 3 + cellColIndex;
                 const cellKey = `${rowBoxI},${rowCellI}`;
-                if (!cells.includes(cellKey)) {
-                    cells.push(cellKey);
-                }
+
+                cells[cellKey] = sudokuBoard[rowBoxI][rowCellI];
+                
             }
         }
 
         // Get all cells in the same column
         for (let boxRowIndex = 0; boxRowIndex < 3; boxRowIndex++) {
             const colBoxI = boxRowIndex * 3 + boxCol;
+            
             for (let cellRowIndex = 0; cellRowIndex < 3; cellRowIndex++) {
                 const colCellI = cellRowIndex * 3 + cellCol;
                 const cellKey = `${colBoxI},${colCellI}`;
-                if (!cells.includes(cellKey)) {
-                    cells.push(cellKey);
-                }
+
+                cells[cellKey] = sudokuBoard[colBoxI][colCellI];
+                
             }
         }
 
@@ -118,14 +98,22 @@
         return cell != "0" ? cell : "";
     }
 
+    function findConflicts(cellKey){
+        if(relatedCells[cellKey] == occupiedCells[`${focusedCell[0]},${focusedCell[1]}`]) return "invalid";
+        return null;
+    }
+
     function getCellClass(cell, boxI, cellI) {
+        const cellKey = `${[boxI, cellI]}`;
+
         if (focusedCell[0] == boxI && focusedCell[1] == cellI) {
             return "active";
         }
-        if (relatedCells.includes(`${[boxI, cellI]}`)) {
-            return "related";
+        if (cellKey in relatedCells) {
+            const isInvalid = findConflicts(cellKey);
+            return isInvalid || "related";
         }
-        if (`${[boxI, cellI]}` in occupiedCells) {
+        if (cellKey in occupiedCells) {
             return "occupied";
         }
         return "cell";
@@ -141,9 +129,10 @@
                         class={getCellClass(cell, boxI, cellI)}
                         onclick={() => {
                             focusedCell = focusedCell[0] === boxI && focusedCell[1] === cellI ? [] : [boxI, cellI];
-                            getRelatedCells(focusedCell[0], focusedCell[1]);
+                            if(focusedCell.length > 0) getRelatedCells(focusedCell[0], focusedCell[1]);
+                            else relatedCells = {};
                         }}
-                    >
+                    style={`${[boxI, cellI]}` in occupiedCells ? "color: rgb(221, 186, 116);" : ""}>
                         {getCellValue(cell, boxI, cellI)}
                     </div>
                 {/each}
@@ -221,9 +210,9 @@
         background-color: light-dark(rgb(143, 221, 236), #6c7e83);
     }
     .box div.related {
-        filter: brightness(1.7);
+       background-color: light-dark(aquamarine, #4d585c);
     }
-    .box div.occupied {
-        color: rgb(221, 186, 116);
+    .box div.invalid{
+        background-color: rgb(196, 122, 122);
     }
 </style>
