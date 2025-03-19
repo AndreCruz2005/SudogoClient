@@ -3,15 +3,19 @@
 <script>
     import axios from "axios";
     import { getContext, onMount } from "svelte";
+    import { hideNumbers } from "../global/hideNumbers";
 
     // Constants
     const backend = getContext("backend");
 
     // Board state
+    let solution = [];
     let sudokuBoard = $state([]);
+
+    // Relevant cells
     let focusedCell = $state([]);
-    let relatedCells = $state({});
-    let occupiedCells = $state({});
+    let relatedCells = $state({}); // In same box, row and col as focused cell
+    let occupiedCells = $state({}); // Where a number has been inserted
 
     // Difficulty settings
     const difficulties = { EASY: 36, MEDIUM: 29, HARD: 22 };
@@ -19,14 +23,32 @@
 
     const getSudoku = () => {
         axios
-            .get(`${backend}/sudoku?hints=${difficulties[difficulty]}&boxes=true`)
+            .get(`${backend}/sudoku?hints=81&boxes=true`)
             .then((res) => {
-                sudokuBoard = res.data;
+                for (let i = 0; i < res.data.length; i++)
+                    solution[i] = res.data[i].slice();
+                sudokuBoard = hideNumbers(res.data, difficulties[difficulty]);
             })
             .catch((err) => {
                 console.error(err);
             });
     };
+
+    const checkWin = () => {
+        for(const box in solution){
+            for (const cell in box){
+                let i = sudokuBoard.indexOf(box), j = box.indexOf(cell);
+                if (cell == sudokuBoard[i][j] || cell == eval(occupiedCells[`${i},${j}`])) {
+                    continue;
+                }
+                else{
+                    console.log('unsolved');
+                    return;
+                }
+            }
+        }
+        console.log('solved!');
+    }
 
     onMount(() => {
         getSudoku();
@@ -91,7 +113,6 @@
      * @param {number} cellI
      */
     function getCellValue(cell, boxI, cellI) {
-        console.log(occupiedCells);
         const key = `${[boxI, cellI]}`;
 
         if (key in occupiedCells) return occupiedCells[key];
@@ -145,6 +166,7 @@
                 onclick={() => {
                     if (focusedCell && sudokuBoard[focusedCell[0]][focusedCell[1]] === 0) {
                         occupiedCells[`${focusedCell}`] = num;
+                        checkWin();
                     }
                 }}
                 class="numbutton">{num}</button
@@ -155,7 +177,11 @@
                 delete occupiedCells[`${focusedCell}`];
             }}>CLEAR</button
         >
-        <button>HINT</button>
+        <button  onclick={() => {
+            let newB = [...sudokuBoard];
+            newB[focusedCell[0]][focusedCell[1]] = solution[focusedCell[0]][focusedCell[1]];
+            sudokuBoard = newB;
+        }}>HINT</button>
         <button
             onclick={() => {
                 getSudoku();
