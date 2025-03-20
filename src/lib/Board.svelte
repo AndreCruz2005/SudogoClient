@@ -6,21 +6,23 @@
     import { hideNumbers } from "../global/hideNumbers";
 
     class BoardCell {
-        default = 0;
-        inserted = 0;
-        valid = true;
+        pos = $state(0);
+        default = $state(0);
+        inserted = $state(0);
         boxI = 0;
         cellI = 0;
         colI = 0;
         rowI = 0;
-        focused = false;
+        focused = $state(false);
 
         /**
          * @param {number} i
          * @param {number} j
          * @param {number} val
+         * @param {number} pos
          */
-        constructor(i, j, val) {
+        constructor(i, j, val, pos) {
+            this.pos = pos;
             this.default = val;
 
             this.boxI = i;
@@ -53,6 +55,54 @@
             // Combine to get the actual column (0-8)
             this.colI = boxCol * 3 + subBoxCol;
         }
+
+        getCellValue() {
+            const returnValue = this.default ? this.default : this.inserted;
+            return returnValue ? returnValue : "";
+        }
+
+        getCellColor() {
+            return this.inserted && !this.default
+                ? "color: rgb(221, 186, 116);"
+                : "";
+        }
+
+        getCellClass() {
+            if (this.isInvalid()) return "invalid";
+            if (this.focused) return "focused";
+            if (this.isRelated()) return "related";
+        }
+
+        isInvalid() {
+            const row = sudokuBoard.filter((it) => it.rowI == this.rowI);
+            const col = sudokuBoard.filter((it) => it.colI == this.colI);
+            const box = sudokuBoard.filter((it) => it.boxI == this.boxI);
+
+            for (const group of [row, col, box]) {
+                for (const it of group) {
+                    if (
+                        it !== this && // Exclude the current cell from comparison
+                        it.getCellValue() != "" &&
+                        it.getCellValue() == this.getCellValue()
+                    ) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        isRelated() {
+            if (focusedCell == -1) return false;
+            const mainCell = sudokuBoard[focusedCell];
+            if (
+                mainCell.rowI == this.rowI ||
+                mainCell.colI == this.colI ||
+                mainCell.boxI == this.boxI
+            )
+                return true;
+            return false;
+        }
     }
 
     // Constants
@@ -61,6 +111,7 @@
     // Board state
     let solution = [];
     let sudokuBoard = $state([]);
+    let focusedCell = $state(-1);
 
     // Difficulty settings
     const difficulties = { EASY: 36, MEDIUM: 29, HARD: 22 };
@@ -70,42 +121,36 @@
         axios
             .get(`${backend}/sudoku?hints=81&boxes=true`)
             .then((res) => {
-                for (let i = 0; i < res.data.length; i++) solution[i] = res.data[i].slice();
+                for (let i = 0; i < res.data.length; i++)
+                    solution.push(...res.data[i]);
 
                 // Create sudoku board
-                const boardArr = hideNumbers(res.data, difficulties[difficulty]);
-                let boardObjects = [];
+                const boardArr = hideNumbers(
+                    res.data,
+                    difficulties[difficulty],
+                );
+                sudokuBoard = [];
                 for (let i = 0; i < 9; i++) {
                     for (let j = 0; j < 9; j++) {
-                        boardObjects.push(new BoardCell(i, j, boardArr[i][j]));
+                        sudokuBoard.push(
+                            new BoardCell(
+                                i,
+                                j,
+                                boardArr[i][j],
+                                sudokuBoard.length,
+                            ),
+                        );
                     }
                 }
-                sudokuBoard = boardObjects;
             })
             .catch((err) => {
                 console.error(err);
             });
     };
 
-    const checkWin = () => {
-        console.log("fuck you");
-    };
-
     onMount(() => {
         getSudoku();
     });
-
-    $effect(() => {
-        console.log(sudokuBoard);
-    });
-
-    /**
-     * @param {BoardCell} cell
-     */
-    function getCellValue(cell) {
-        const returnValue = cell.inserted ? cell.inserted : cell.default;
-        return returnValue ? returnValue : "";
-    }
 </script>
 
 <div id="game">
@@ -113,17 +158,46 @@
         {#each Array.from({ length: 9 }, (_, i) => i) as boxI}
             <div class="box">
                 {#each sudokuBoard.filter((i) => i.boxI == boxI) as cell}
-                    <div>{getCellValue(cell)}</div>
+                    <div
+                        class={cell.getCellClass()}
+                        onclick={() => {
+                            if (focusedCell != -1)
+                                sudokuBoard[focusedCell].focused = false;
+
+                            if (focusedCell != cell.pos) {
+                                focusedCell = cell.pos;
+                                sudokuBoard[focusedCell].focused = true;
+                            } else {
+                                focusedCell = -1;
+                            }
+                        }}
+                        style={cell.getCellColor()}
+                    >
+                        {cell.getCellValue()}
+                    </div>
                 {/each}
             </div>
         {/each}
     </div>
     <div id="numpad">
         {#each Array.from({ length: 9 }, (_, i) => i + 1) as num}
-            <button class="numbutton">{num}</button>
+            <button
+                class="numbutton"
+                onclick={() => {
+                    sudokuBoard[focusedCell].inserted = num;
+                }}>{num}</button
+            >
         {/each}
-        <button>CLEAR</button>
-        <button>HINT</button>
+        <button
+            onclick={() => {
+                sudokuBoard[focusedCell].inserted = 0;
+            }}>CLEAR</button
+        >
+        <button
+            onclick={() => {
+                sudokuBoard[focusedCell].default = solution[focusedCell];
+            }}>HINT</button
+        >
         <button
             onclick={() => {
                 getSudoku();
@@ -172,13 +246,13 @@
     .box div:hover {
         cursor: pointer;
     }
-    .box div.active {
+    .box div.focused {
         background-color: light-dark(rgb(143, 221, 236), #6c7e83);
     }
     .box div.related {
         background-color: light-dark(aquamarine, #4d585c);
     }
     .box div.invalid {
-        background-color: rgb(196, 122, 122);
+        background-color: light-dark(aquamarine, #4d585c);
     }
 </style>
