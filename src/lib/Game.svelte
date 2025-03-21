@@ -13,6 +13,7 @@
         cellI = 0;
         colI = 0;
         rowI = 0;
+        notes = $state(Array.from({length: 9}).fill(false));
 
         /**
          * @param {number} i
@@ -101,6 +102,7 @@
     let errors = $state(0);
     let usedHints = $state(0);
     let won = $state(false);
+    let notesMode = $state(false);
 
     // Board state
     let solution = [];
@@ -108,7 +110,7 @@
     let focusedCell = $state(-1);
 
     // Difficulty settings
-    const difficulties = { EASY: 36, MEDIUM: 80, HARD: 22 };
+    const difficulties = { EASY: 36, MEDIUM: 29, HARD: 22 };
     let difficulty = $state("MEDIUM");
 
     const getSudoku = () => {
@@ -147,6 +149,14 @@
         }
         won = true;
     }
+
+    function restart(){
+        getSudoku();
+        timer = 0;
+        errors = 0;
+        usedHints = 0;
+        won = false;
+    }
 </script>
 
 <div id="game">
@@ -155,17 +165,19 @@
             <div class="box">
                 {#each sudokuBoard.filter((i) => i.boxI == boxI) as cell}
                     <div
+                        id="cell"
                         class={cell.getCellClass()}
                         onclick={() => {
-                            if (focusedCell != cell.pos) {
-                                focusedCell = cell.pos;
-                            } else {
-                                focusedCell = -1;
-                            }
+                            focusedCell = focusedCell != cell.pos ? cell.pos : -1;
                         }}
                         style={cell.getCellColor()}
                     >
                         {cell.getCellValue()}
+                        <div class="notes">
+                            {#each cell.notes as note, idx}
+                                <div class="small-number">{note && !cell.getCellValue() ? idx+1 : ""}</div>
+                            {/each}
+                        </div>
                     </div>
                 {/each}
             </div>
@@ -181,17 +193,24 @@
                 <button
                     class="numbutton"
                     onclick={() => {
-                        sudokuBoard[focusedCell].inserted = num;
-                        if (sudokuBoard[focusedCell].isInvalid()) {
-                            errors++;
+                        if(!notesMode){
+                            sudokuBoard[focusedCell].inserted = num;
+                            if (sudokuBoard[focusedCell].isInvalid()) {
+                                errors++;
+                            }
+                            hasWon();
                         }
-                        hasWon();
+                        else{
+                            sudokuBoard[focusedCell].notes[num-1] = !sudokuBoard[focusedCell].notes[num-1];
+                        }
                     }}>{num}</button
                 >
             {/each}
             <button
                 onclick={() => {
-                    sudokuBoard[focusedCell].erase();
+                    if(!notesMode) sudokuBoard[focusedCell].erase();
+                    else sudokuBoard[focusedCell].notes = Array.from({length: 9}).fill(false);
+
                 }}>CLEAR</button
             >
             <button
@@ -204,12 +223,8 @@
             >
             <button
                 onclick={() => {
-                    getSudoku();
-                    timer = 0;
-                    errors = 0;
-                    usedHints = 0;
-                    won = false;
-                }}>NEW</button
+                    notesMode = !notesMode;
+                }}>NOTES</button
             >
         </div>
     </div>
@@ -243,7 +258,7 @@
 
     #numpad {
         display: grid;
-        grid-template-columns: repeat(3, 13vw);
+        grid-template-columns: repeat(3, 9vw);
         padding: 5% 5% 0 5%;
         gap: 10px;
         flex: 15;
@@ -263,11 +278,12 @@
         aspect-ratio: 1/1;
         width: fit-content;
     }
-    .box div {
+    #cell {
+        position: relative;
         width: 4vw;
         height: 4vw;
         aspect-ratio: 1/1;
-        background-color: light-dark(#f8f9fa, #2d3436);
+
         border: 1px solid light-dark(#bdc3c7, #636e72);
         font-size: 40px;
         color: light-dark(#34495e, #dfe6e9);
@@ -282,6 +298,33 @@
             font-size: 20px;
         }
     }
+    .box .notes{
+        display:  grid;
+        grid-template-columns: repeat(3, auto);
+        position: absolute; 
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0);
+
+        .small-number{
+            width: 100%;
+            height: 100%;
+            font-size: 17px;
+            color: light-dark(#6e7c8c, #60a3f0);
+            background-color: rgba(0, 0, 0, 0);
+            align-content: center;
+
+            @media (max-width: 1624px) {
+                font-size: 13px;
+            }
+
+            @media (max-width: 1224px) {
+                font-size: 9px;
+            }
+        }
+    }
     .box div:hover {
         cursor: pointer;
     }
@@ -292,7 +335,7 @@
         background-color: light-dark(#e2f1fe, #4d585c);
     }
     .box div.invalid {
-        background-color: light-dark(#ffbfbf, #db6b6b);
+        background-color: light-dark(#eea1a1, #db6b6b);
     }
 
     p {
