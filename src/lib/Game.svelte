@@ -157,9 +157,22 @@
         usedHints = 0;
         won = false;
     }
+
 </script>
 
 <div id="game">
+    <div id="game-over" style={`display: ${!won ? 'inline' : 'none'};`}> 
+        <h1>GAME OVER</h1>
+        <div>TIME USED: {timer} SECONDS</div>
+        <div>HINTS USED: {usedHints}</div>
+        <div>ERRORS: {errors}</div>
+        <div>PENALTY: {timer + usedHints*120 + errors * 60}</div>
+        <select bind:value={difficulty} onchange={(e) => {difficulty = e.target.value;}}>
+            <option value="EASY">EASY</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="HARD">HARD</option>
+        </select>
+    </div>
     <div id="board">
         {#each Array.from({ length: 9 }, (_, i) => i) as boxI}
             <div class="box">
@@ -225,6 +238,11 @@
                 onclick={() => {
                     notesMode = !notesMode;
                 }}>NOTES</button
+            >
+            <button
+                onclick={() => {
+                    restart();
+                }}>GIVE UP</button
             >
         </div>
     </div>
